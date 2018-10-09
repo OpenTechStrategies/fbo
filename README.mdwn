@@ -205,3 +205,12 @@ To run the tests, just do `./test` or `tox
 you set up different environments for testing. Note that running the
 tests deletes the LEIE data, so after running the tests, you'll need
 to get it again.
+
+## License, Copyright, and Contributing
+
+Copyright 2018 James Vasile
+Copyright 2018 Open Tech Strategies, LLC
+
+Released under the terms of the GNU Affero General Public License,
+Version 3 or later.  Contributions welcome at
+https://github.com/OpenTechStrategies/fbo
