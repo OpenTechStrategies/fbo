@@ -181,7 +181,10 @@ class SQL(DBConn):
         dirname = os.path.dirname(self.db_conf['open'])
         if not dirname:
             dirname = os.path.dirname(__file__)
-            
+
+        ## Make sure our migrations are up to date
+        self.goose_write()
+        
         with cd(dirname):
             # Make sure the sqlite3 db exists before we try to migrate it
             if not os.path.exists(os.path.basename(self.db_conf['open'])):

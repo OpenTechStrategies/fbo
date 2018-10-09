@@ -200,7 +200,7 @@ def main():
 
     ## Make sure the db schema is up to date, create tables, etc.
     db.migrate()
-
+    
     assert os.path.exists(datadir)
 
     ## Download raw data files
