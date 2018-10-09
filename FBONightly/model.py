@@ -8,7 +8,7 @@ pp = pprint.PrettyPrinter(indent=4).pprint
 import sys
 
 # Import project-specific stuff
-from sql import SQL
+from sql import DBConn as SQL
 import log
 warn, info, debug, fatal = log.reporters()
 import util as u
@@ -28,7 +28,10 @@ class FBO(SQL):
     now.
 
     """
-    pass
+    def __init__(self, *args, **kwargs):
+        self.FBOTableEntry_classes = get_FBOTableEntry_classes()
+        SQL.__init__(self, *args, **kwargs)
+        
 
 class FBOTableEntry(dict):
     """Model of a record type from the nightly fbo dump.
@@ -156,7 +159,6 @@ class FBOTableEntry(dict):
                 + "nightly_id text, "
                 + "UNIQUE (sha256));\n")
     
-    
 ## Below are the classes for each of the record types we encounter in
 ## an FBO Nightly file.  They're largely the same, but I designed the
 ## multi-class stuff before realizing I didn't need much custom
@@ -256,6 +258,7 @@ class Unarchive(FBOTableEntry):
         return (("012_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
 
 
+    
 ## Here we do some inspection to extract the list of FBOTableEntry
 ## classes to so we can call them with a little more automated ease.
 def get_FBOTableEntry_classes():
@@ -271,12 +274,11 @@ def get_FBOTableEntry_classes_as_dict():
     for c in get_FBOTableEntry_classes():
         ret[c.__name__.lower()] = c
     return ret
-FBOTableEntry_classes = get_FBOTableEntry_classes_as_dict()
 
 def main(dirname=None):
     logger = log.logger()
     logger.info('Running model.py directly to produce schema/goose output.')
-    conn = SQL(connect=False, FBOTableEntry_classes=get_FBOTableEntry_classes())
+    conn = SQL(connect=False)
     fnames = conn.goose_write(dirname)
     logger.info('Finished running model.py directly to produce schema/goose output.')
     return fnames

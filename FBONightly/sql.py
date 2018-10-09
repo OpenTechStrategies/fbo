@@ -13,6 +13,14 @@ warn, info, debug, fatal = log.reporters()
 import util as u
 
 class DBConn(object):
+    """All the sql and goose stuff goes in this class.
+
+    We generate the SQL here becuase in the future I think we might want some
+    smart/scripted way to manage sql for different DB types.
+
+    In addition to the parent's __init__ parameters, we need a list of
+    the FBOTableEntry classes in the model.  Pass it as a kwarg.
+    """
     def __init__(self, db_name="development", db_conf_file="", connect=True):
         """Open a database connection, creating db if needed, and generally
         get ready to store stuff.
@@ -52,10 +60,28 @@ class DBConn(object):
         self.conn.commit()
         self.conn.close()
 
-    def table_len(self, table):
-        """Return the number of total rows in the TABLE"""
+    def table_len(self, table, columns=None):
+        """Return the number of total rows in the TABLE
+
+        If COLUMNS is specified as a list of column names, this method
+        will return a second value, namely a dict of those names
+        hashed to integers representing the number of rows for each
+        listed name that are not empty.  If COLUMNS is specified as an
+        empty list (instead of None), this method will return as the
+        second value a dict with all the column names and their
+        corresponding row counts.
+
+        """
         c = self.conn.cursor()
-        return (c.execute("SELECT Count(*) FROM %s" % table).fetchone()[0])
+        rows = c.execute("SELECT Count(*) FROM %s" % table).fetchone()[0]
+        if columns == None:
+            return rows
+        ret = {}
+        if columns == []:
+            columns = self.get_header(table)
+        for col in columns:
+            ret[col] = c.execute("SELECT Count(*) FROM %s WHERE %s is not null" % (table, col)).fetchone()[0]
+        return rows, ret
 
     def row_to_dict(self, row, field=None, description=None):
         """
@@ -109,20 +135,6 @@ class DBConn(object):
         crsr.execute(query, d)
         self.conn.commit()
 
-class SQL(DBConn):
-    """All the sql and goose stuff goes in this class.
-
-    We generate the SQL here becuase in the future I think we might want some
-    smart/scripted way to manage sql for different DB types.
-
-    In addition to the parent's __init__ parameters, we need a list of
-    the FBOTableEntry classes in the model.  Pass it as a kwarg.
-    """
-
-    def __init__(self, *args, **kwargs):
-        self.FBOTableEntry_classes = kwargs.pop('FBOTableEntry_classes')
-        DBConn.__init__(self, *args, **kwargs)
-        
     def goose(self):
         """Returns a dict of goose migrations.  The keys are filenames and the
         values are the contents of the goose files.
@@ -272,6 +284,16 @@ class SQL(DBConn):
         if not all:
             return None
         return dateutil.parser.parse(all[-1][0])
+    
+    def get_parsed_datetime(self, fname):
+        """Return the logged time of the last parsing of the file named FNAME
+
+        If it's not there, return None"""
+        c = self.conn.cursor()
+        all = c.execute("SELECT * FROM log WHERE msg=?", ["Parsed " + fname]).fetchall()
+        if not all:
+            return None
+        return dateutil.parser.parse(all[-1][0])
 
     def get_header(self, table):
         """Returns a list of the column names in TABLE"""
@@ -320,5 +342,5 @@ class SQL(DBConn):
     def unused_columns(self, table):
         """Returns a list of strings containing names of columns in TABLE that
         are empty in every row."""
-        pass
-    
+        counts = self.table_len(table, [])[1]
+        return [r for r in counts if counts[r] == 0]

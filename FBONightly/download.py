@@ -39,14 +39,18 @@ class Downloader():
 
         FNAME_URL is a generator function that produces dicts of {"fname":"foo", "url":"bar"}"""
 
+        downloaded = []
+        
         for pair in fname_url(self):
             if self.dload_if_stale(pair['fname'],
                                    pair['url'],
                                    check_log = check_log):
                 self.conn.log(self.tag, "Downloaded %s from %s" % (pair['fname'], pair['url']))
+                downloaded.append(pair['fname'])
             else:
                 debug("Not stale: %s" % pair['fname'])
                 
+        return downloaded
     def dload_if_stale(self, fname, url, check_log = False):
         """Download the file at URL and save it to FNAME, but only if the
         on-disk version is out of date.

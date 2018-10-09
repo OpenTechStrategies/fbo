@@ -7,6 +7,7 @@ See README.mdwn for details and instructions.
 """
 
 # System modules
+import click
 from datetime import datetime
 from datetime import date, timedelta
 import os
@@ -56,7 +57,7 @@ class Nightlies(ETL_Helper):
         record = []
         curr_record_type = None
         nightly = u.slurp(fname, "latin-1")
-        for line in nightly.split("\n"):#lines(keepends=True):
+        for line in nightly.split("\n"):
             if not curr_record_type:
                 if not line.strip():
                     continue
@@ -91,7 +92,7 @@ class Nightlies(ETL_Helper):
                 sys.exit(-1)
 
             ## Complain if we lack a class to handle this record type
-            if not tag.lower() in model.FBOTableEntry_classes:
+            if not tag.lower() in model.get_FBOTableEntry_classes_as_dict():
                 if not tag in unhandled:
                     unhandled.append(tag)
                     warn("Unhandled record type: %s" % tag)
@@ -102,7 +103,7 @@ class Nightlies(ETL_Helper):
             ## correct parser model for each type of record.  We do
             ## some module inspection to accomplish that without a
             ## giant if-then-else block.
-            record = model.FBOTableEntry_classes[tag.lower()](nightly=record)
+            record = model.get_FBOTableEntry_classes_as_dict()[tag.lower()](nightly=record)
 
             ## Add the query to our dict of queries.  We'll do them as
             ## multi-insert transactions later because if we do the
@@ -124,7 +125,7 @@ class Nightlies(ETL_Helper):
                 print(query)
                 raise
             
-    def etl_from_dir(self, data_dir="data"):
+    def etl_from_dir(self, data_dir="data", reparse=False):
         """Extract, translate, load exclusions (and not reinstatements) from
         the DATA_DIR directory."""
 
@@ -132,8 +133,11 @@ class Nightlies(ETL_Helper):
         for fname in sorted(os.listdir(data_dir)):
             if not (fname.startswith("FBO") and not fname.endswith(".sql")):
                 continue
+            if reparse == False and self.db.get_parsed_datetime(fname):
+                continue
             self.etl_from_filename(os.path.join(data_dir,fname))
-
+            self.db.log("nightly", "Parsed %s" % fname)
+            
 def date2fname(datadir, datum):
     """Take a datetime object DATUM and a string containing a path to the
     data directory and return a string with the file name of the
@@ -165,7 +169,7 @@ def fname_urls(self):
         x += 1
 
     # Each time we run this, we add download extra files to get at the backload
-    maximum = len(os.listdir(self.datadir)) + 3
+    maximum = len(os.listdir(self.datadir)) + 2
     
     while x < maximum:
         today = date.today() - timedelta(x)
@@ -182,7 +186,9 @@ def fname_urls(self):
         yield {"fname":fname, "url":date2url(today)}
         x += 1
         
-def main():
+@click.command()
+@click.option('--reparse/--noreparse', default=False, help='Reparse old data files.')
+def main(reparse):
     os.chdir(os.path.dirname(__file__))
     logger = log.logger()
     info('Starting ETL of FBO Nightly data.')
@@ -194,20 +200,20 @@ def main():
         os.makedirs(os.path.join(dbdir, "sqlite3"))
         
     ## Get a database connection, create db if needed
-    db = model.FBO("development", db_conf_file=os.path.join(dbdir, "dbconf.yml"), FBOTableEntry_classes=model.get_FBOTableEntry_classes())
+    db = model.FBO("development", db_conf_file=os.path.join(dbdir, "dbconf.yml"))
 
     ## Make sure the db schema is up to date, create tables, etc.
     db.migrate()
-    
+
     assert os.path.exists(datadir)
 
     ## Download raw data files
     dloader = Downloader(datadir, db, 'nightly')
     dloader.download(fname_urls, True)
-    
+        
     ## Do our ETL
     nights = Nightlies(db)
-    nights.etl_from_dir()
+    nights.etl_from_dir(reparse=reparse)
     
     ## Close the db connection
     db.close()
