@@ -142,6 +142,9 @@ structure, but don't display that structure.  There's no
 documentation.  It's what you might expect from a pile of data that
 predates easy, widespread tooling for XML and JSON.
 
+There is a node-based parser for these files on GitHub, but it hides
+some structure, so we're doing our own parsing to avoid using it.
+
 ## Data Sources
 
 Data is taken from ftp://ftp.fbo.gov.
