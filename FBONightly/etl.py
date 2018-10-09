@@ -9,13 +9,11 @@ See README.mdwn for details and instructions.
 # System modules
 from datetime import datetime
 from datetime import date, timedelta
-import dateutil.parser
 import os
 import pprint
 pp = pprint.PrettyPrinter(indent=4).pprint
 import re
 import sqlite3
-import subprocess
 import sys
 import time
 
@@ -196,7 +194,7 @@ def main():
         os.makedirs(os.path.join(dbdir, "sqlite3"))
         
     ## Get a database connection, create db if needed
-    db = model.FBO("development", db_conf_file=os.path.join(dbdir, "dbconf.yml"))
+    db = model.FBO("development", db_conf_file=os.path.join(dbdir, "dbconf.yml"), FBOTableEntry_classes=model.get_FBOTableEntry_classes())
 
     ## Make sure the db schema is up to date, create tables, etc.
     db.migrate()
