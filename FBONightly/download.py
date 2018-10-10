@@ -108,7 +108,6 @@ class Downloader():
 
     def dload_if_stale_ftp(self, fname, url):
         """Download file from ftp if it is out of date."""
-
         parsed_uri = urlparse(url)
         domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
         remote_path = parsed_uri.path

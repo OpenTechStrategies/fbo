@@ -215,12 +215,9 @@ def main(reparse=False):
 
     """
 
-    # Pylint shouldn't complain about logger being unused
-    #pylint: disable=unused-variable
-
     os.chdir(os.path.dirname(__file__))
     logger = log.logger()
-    info('Starting ETL of FBO Nightly data.')
+    logger.info('Starting ETL of FBO Nightly data.')
 
     # Figure out where we put data
     datadir = get_datadir()
