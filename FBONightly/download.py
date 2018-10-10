@@ -33,14 +33,14 @@ class Downloader():
         self.datadir = datadir
         self.conn = conn
         self.tag = tag
-        
+
     def download(self, fname_url, check_log = False):
         """Download a series of urls and save them to corresponding filenames.
 
         FNAME_URL is a generator function that produces dicts of {"fname":"foo", "url":"bar"}"""
 
         downloaded = []
-        
+
         for pair in fname_url(self):
             if self.dload_if_stale(pair['fname'],
                                    pair['url'],
@@ -49,7 +49,7 @@ class Downloader():
                 downloaded.append(pair['fname'])
             else:
                 debug("Not stale: %s" % pair['fname'])
-                
+
         return downloaded
     def dload_if_stale(self, fname, url, check_log = False):
         """Download the file at URL and save it to FNAME, but only if the
@@ -64,12 +64,12 @@ class Downloader():
 
         if not self.fname_is_stale(fname, url, check_log=check_log):
             return False
-        
+
         debug("Downloading %s from %s" % (fname, url))
 
         if url.startswith("ftp://"):
             return self.dload_if_stale_ftp(fname, url)
-        
+
         # We stream and write this in chunks in case it is huge. It's
         # not, now, but maybe it will grow.  Better safe than sorry.
         r=requests.get(url, stream=True)
@@ -123,13 +123,13 @@ class Downloader():
 
         Return False if CHECK_LOG = True and we have a log entry in the db
         saying we already downloaded the file.
-        
+
         """
 
         # If there is no already-existing file, it is stale
         if not os.path.exists(fname):
             return True
-    
+
         # Check that we haven't already downloaded this according to the log
         if check_log:
             last = self.conn.get_download_datetime(os.path.basename(fname))
@@ -140,10 +140,10 @@ class Downloader():
             stale = self.fname_is_stale_ftp(fname, url)
         else:
             stale = self.fname_is_stale_http(fname, url)
-            
+
         if not stale:
             self.conn.log(self.tag, "Downloaded %s" % os.path.basename(fname))
-            
+
         return stale
 
     def fname_is_stale_ftp(self, fname, url):
@@ -176,7 +176,7 @@ class Downloader():
         if size != os.path.getsize(fname):
             warn("Size differs from that on disk. File %s is stale." % fname)
             return True
-    
+
         # If the url version is somehow newer than our file on disk, the
         # file on disk is stale
         if datum > datetime.fromtimestamp(os.path.getmtime(fname)):
@@ -184,7 +184,7 @@ class Downloader():
 
         # Looks like the cached file is still good
         return False
-    
+
     def fname_is_stale_http (self, fname, url):
         """Tries to answer the question of whether the file named FNAME needs
         to be redownloaded.

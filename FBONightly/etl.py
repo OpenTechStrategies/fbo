@@ -71,17 +71,17 @@ class Nightlies(ETL_Helper):
                 curr_record_type = None
 
         return records
-    
+
     def etl_from_filename(self, fname):
         """Extract, translate, load data from the file named FNAME."""
 
         info("Parsing and loading %s" % fname)
-        
+
         records = self.get_nightly_records(fname)
-        
+
         unhandled = []  # Save a list of unhandled tags
         queries = {}    # Store queries so we can executemany them
-        
+
         for record in records:
 
             ## Get the record type from the first tag for this record
@@ -124,7 +124,7 @@ class Nightlies(ETL_Helper):
             except sqlite3.OperationalError:
                 print(query)
                 raise
-            
+
     def etl_from_dir(self, data_dir="data", reparse=False):
         """Extract, translate, load exclusions (and not reinstatements) from
         the DATA_DIR directory."""
@@ -137,14 +137,14 @@ class Nightlies(ETL_Helper):
                 continue
             self.etl_from_filename(os.path.join(data_dir,fname))
             self.db.log("nightly", "Parsed %s" % fname)
-            
+
 def date2fname(datadir, datum):
     """Take a datetime object DATUM and a string containing a path to the
     data directory and return a string with the file name of the
     nightly data file for that date.
     """
     return os.path.join(datadir, "FBOFeed%d%02d%02d" % (datum.year, datum.month, datum.day))
-    
+
 def date2url(datum):
     """Take a datetime object DATUM and return an FBO nightly ftp URL so
     we can download the file corresponding to that date."""
@@ -170,7 +170,7 @@ def fname_urls(self):
 
     # Each time we run this, we add download extra files to get at the backload
     maximum = len(os.listdir(self.datadir)) + 2
-    
+
     while x < maximum:
         today = date.today() - timedelta(x)
         fname = date2fname(self.datadir, today)
@@ -182,10 +182,10 @@ def fname_urls(self):
         if os.path.exists(fname+".sql"):
             x += 1
             continue
-        
+
         yield {"fname":fname, "url":date2url(today)}
         x += 1
-        
+
 @click.command()
 @click.option('--reparse/--noreparse', default=False, help='Reparse old data files.')
 def main(reparse):
@@ -198,7 +198,7 @@ def main(reparse):
     dbdir = get_dbdir()
     if not os.path.exists(os.path.join(dbdir, "sqlite3")):
         os.makedirs(os.path.join(dbdir, "sqlite3"))
-        
+
     ## Get a database connection, create db if needed
     db = model.FBO("development", db_conf_file=os.path.join(dbdir, "dbconf.yml"))
 
@@ -210,11 +210,11 @@ def main(reparse):
     ## Download raw data files
     dloader = Downloader(datadir, db, 'nightly')
     dloader.download(fname_urls, True)
-        
+
     ## Do our ETL
     nights = Nightlies(db)
     nights.etl_from_dir(reparse=reparse)
-    
+
     ## Close the db connection
     db.close()
 

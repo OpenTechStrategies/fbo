@@ -108,21 +108,21 @@ class DBConn(object):
         ## Add hash of all the columns so every row has a unique id
         ## that survives table add/drop (but possibly not migrations)
         d['sha256'] =  hashlib.sha256("|".join([str(d) for d in d.values()]).encode()).hexdigest()
-        
+
         ## Build query
         columns = ', '.join(d.keys())
         placeholders = ':'+', :'.join(d.keys())
         query = "INSERT OR IGNORE INTO %s (%s) VALUES (%s);\n" % (table, columns, placeholders)
 
         return query, d
-    
+
     def write_dict_many_query(self, query, d):
         ## Execute query
         crsr = self.conn.cursor()
         #debug("Writing %s" % ", ".join(d.keys()))
         crsr.executemany(query, d)
         self.conn.commit()
-        
+
     def write_dict(self, table, d):
         """Write the dict D to table TABLE, where the column names correspond
         to the keys."""
@@ -146,13 +146,13 @@ class DBConn(object):
         migration_sources = [self.migrations()]
         for fbo_class in self.FBOTableEntry_classes:
             migration_sources.append(fbo_class().migrations())
-            
+
         migrations = {}
         for source in migration_sources:
             for migration in source:
                 migrations[migration[0]] = "-- +goose Up\n%s\n-- +goose Down\n%s\n" % (migration[1], migration[2])
         return migrations
-    
+
     def goose_write(self, dirname=None):
         """Writes any needed migration files to the migrations directory
         specified by DIRNAME.  Leave DIRNAME as None to just use
@@ -187,7 +187,7 @@ class DBConn(object):
 
         ## Make sure our migrations are up to date
         self.goose_write()
-        
+
         with cd(dirname):
             # Make sure the sqlite3 db exists before we try to migrate it
             if not os.path.exists(os.path.basename(self.db_conf['open'])):
@@ -205,7 +205,7 @@ class DBConn(object):
                 sys.stderr.write("%s\n%s" % (out, err))
                 raise subprocess.CalledProcessError(p.returncode, cmd, out+err)
             return out
-        
+
     def migrations(self):
         return (("001_create_log.sql", self.sql_table(), "DROP TABLE log;"),)
 
@@ -222,7 +222,7 @@ class DBConn(object):
         datatype text,
         msg text);
         """
-        
+
 
     def log(self, datatype, message, now=""):
         """Add a MESSAGE string about a DATATYPE (either updated or
@@ -284,7 +284,7 @@ class DBConn(object):
         if not all:
             return None
         return dateutil.parser.parse(all[-1][0])
-    
+
     def get_parsed_datetime(self, fname):
         """Return the logged time of the last parsing of the file named FNAME
 
