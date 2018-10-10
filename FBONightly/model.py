@@ -59,7 +59,15 @@ class FBOTableEntry(dict):
 
     This is just a dict that we're wrapping in a class so we can
     attach methods to it."""
-    fields = []
+    fields = re.split(
+        r"\s+",
+        "date solicitation_number response_date " +
+        "setaside award_number awardee award_date award_amount " +
+        "agency office location " +
+        "office_address zip class_code naics subject desc url " +
+        "url_desc email email_desc archive_date contact " +
+        "pop_address pop_zip pop_country donbr modnbr foja stauth " +
+        "ntype line_number correction")
 
     def __init__(self, nightly=None):
         dict.__init__(self)
@@ -207,13 +215,6 @@ class FBOTableEntry(dict):
 
 class Amdcss(FBOTableEntry):
     """Model of a Amdcss"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside " +
-        "agency office location office_address zip class_code " +
-        "naics subject desc url url_desc email email_desc " +
-        "archive_date contact pop_address pop_zip pop_country " +
-        "ntype")
 
     def migrations(self):
         return (("006_%s_table.sql" %
@@ -235,13 +236,6 @@ class Archive(FBOTableEntry):
 
 class Award(FBOTableEntry):
     """Model of a Award"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number award_number " +
-        "award_amount award_date awardee line_number agency " +
-        "office location office_address zip class_code naics " +
-        "subject desc url url_desc email email_desc archive_date " +
-        "contact ntype correction")
 
     def migrations(self):
         return (("008_%s_table.sql" %
@@ -251,11 +245,6 @@ class Award(FBOTableEntry):
 
 class Combine(FBOTableEntry):
     """Model of a Combine"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency office location " +
-        "office_address zip class_code naics subject desc url url_desc email " +
-        "email_desc archive_date contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("005_%s_table.sql" %
@@ -265,11 +254,6 @@ class Combine(FBOTableEntry):
 
 class Fairopp(FBOTableEntry):
     """Model of a Fairopp"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number award_number award_date agency office location " +
-        "office_address zip class_code naics subject desc url url_desc email " +
-        "email_desc archive_date contact ntype foja donbr modnbr")
 
     def migrations(self):
         return (("010_%s_table.sql" %
@@ -279,11 +263,6 @@ class Fairopp(FBOTableEntry):
 
 class Fstd(FBOTableEntry):
     """Model of a Fstd"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency office location " +
-        "office_address zip class_code naics subject desc url url_desc email " +
-        "email_desc contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("014_%s_table.sql" %
@@ -293,14 +272,6 @@ class Fstd(FBOTableEntry):
 
 class ITB(FBOTableEntry):
     """Model of a ITB (Invitation To Bid)"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number " +
-        "response_date setaside agency " +
-        "office location office_address zip class_code naics " +
-        "subject desc url url_desc email email_desc archive_date " +
-        "contact pop_address pop_zip pop_country ntype foja " +
-        "donbr correction modnbr")
 
     def migrations(self):
         return (("015_%s_table.sql" %
@@ -310,12 +281,6 @@ class ITB(FBOTableEntry):
 
 class Ja(FBOTableEntry):
     """Model of a Ja"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number award_number award_date agency office "
-        + "location office_address zip class_code naics subject desc url "
-        + "url_desc email email_desc archive_date contact ntype stauth "
-        + "correction modnbr")
 
     def migrations(self):
         return (("009_%s_table.sql" %
@@ -325,12 +290,6 @@ class Ja(FBOTableEntry):
 
 class Mod(FBOTableEntry):
     """Model of a Mod"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency office "
-        + "location office_address zip class_code naics subject desc url "
-        + "url_desc email email_desc archive_date contact pop_address "
-        + "pop_zip pop_country ntype")
 
     def migrations(self):
         return (("007_%s_table.sql" %
@@ -340,12 +299,6 @@ class Mod(FBOTableEntry):
 
 class Presol(FBOTableEntry):
     """Model of a pre-solicitation"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside " +
-        "agency office location office_address zip class_code " +
-        "naics subject desc url url_desc email email_desc " +
-        "archive_date contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("002_%s_table.sql" %
@@ -355,11 +308,6 @@ class Presol(FBOTableEntry):
 
 class SNote(FBOTableEntry):
     """Model of a SNote"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency office " +
-        "location office_address zip class_code naics subject desc url " +
-        "url_desc email email_desc archive_date contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("004_%s_table.sql" %
@@ -369,12 +317,6 @@ class SNote(FBOTableEntry):
 
 class Srcsgt(FBOTableEntry):
     """Model of a Srcsgt"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency " +
-        "office location office_address zip class_code naics " +
-        "subject desc url url_desc email email_desc archive_date " +
-        "contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("003_%s_table.sql" %
@@ -384,12 +326,6 @@ class Srcsgt(FBOTableEntry):
 
 class SSale(FBOTableEntry):
     """Model of a SSale"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number response_date setaside agency " +
-        "office location office_address zip class_code naics " +
-        "subject desc url url_desc email email_desc archive_date " +
-        "contact pop_address pop_zip pop_country")
 
     def migrations(self):
         return (("013_%s_table.sql" %
@@ -399,10 +335,6 @@ class SSale(FBOTableEntry):
 
 class Unarchive(FBOTableEntry):
     """Model of a Unarchive"""
-    fields = re.split(
-        r"\s+",
-        "date solicitation_number award_number agency office " +
-        "location archive_date ntype")
 
     def migrations(self):
         return (("012_%s_table.sql" %
@@ -433,6 +365,7 @@ def get_FBOTableEntry_classes_as_dict():
 
 def main(dirname=None):
     """Main entrypoint that builds and stores our models."""
+
     logger = log.logger()
     logger.info('Running model.py directly to produce schema/goose output.')
     conn = FBO(connect=False)
