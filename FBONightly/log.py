@@ -22,47 +22,53 @@ import inspect
 import os
 import sys
 
-"""This is a setup string that gets executed with exec rather than
-called.  It has the imports and definitions we do in every module for
-logging.  It can't be a function because it needs to execute in
-parent's scope and context.
-
-"""
 
 def loggername():
     return os.path.basename(os.path.dirname(__file__))
 
+
 def reporters():
-    logger = logging.getLogger(loggername())
-    warn = logger.warning
-    info = logger.info
-    debug = logger.debug
-    def fatal(m): logger.error(m); sys.exit(-1)
+    """Return reporting functions for various log levels."""
+    lgr = logging.getLogger(loggername())
+    warn = lgr.warning
+    info = lgr.info
+    debug = lgr.debug
+
+    def fatal(msg):
+        lgr.error(msg)
+        sys.exit(-1)
+
     return warn, info, debug, fatal
+
 
 def logger():
     """Configure and return logger.  You can override this logging by
     putting logging.ini in a parent dir of caller's python file.
 
     """
-    dirname = os.path.abspath(os.path.dirname(inspect.getfile(sys._getframe(1))))
+    #pylint: disable=protected-access
+
+    dirname = os.path.abspath(
+        os.path.dirname(
+            inspect.getfile(
+                sys._getframe(1))))
     if os.path.exists(os.path.join(dirname, '../logging.ini')):
-        logging.config.fileConfig(os.path.join(dirname,'../logging.ini'),
+        logging.config.fileConfig(os.path.join(dirname, '../logging.ini'),
                                   disable_existing_loggers=False)
     else:
         logging.config.dictConfig(dict(
-            version = 1,
-            disable_existing_loggers = False,
-            formatters = {
+            version=1,
+            disable_existing_loggers=False,
+            formatters={
                 'f': {'format':
                       '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
             },
-            handlers = {
+            handlers={
                 'h': {'class': 'logging.StreamHandler',
                       'formatter': 'f',
                       'level': logging.DEBUG}
             },
-            root = {
+            root={
                 'handlers': ['h'],
                 'level': logging.DEBUG,
             },

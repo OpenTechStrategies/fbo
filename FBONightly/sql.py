@@ -1,18 +1,34 @@
+"""
+This module contains routines for talking to our db, which in this case is sqlite.
+"""
 import datetime
-import dateutil.parser
 import hashlib
 import os
-from path import cd
 import sqlite3
 import subprocess
+import sys
 import yaml
+import dateutil.parser
 
 # Import project-specific stuff
 import log
-warn, info, debug, fatal = log.reporters()
+from path import cd
 import util as u
 
-class DBConn(object):
+# Set up our python logging, which is separate from logging messages
+# in the DB
+warn, info, debug, fatal = log.reporters()
+
+
+class DBNotFound(Exception):
+    pass
+
+
+class UnsupportedDBType(Exception):
+    pass
+
+
+class DBConn():
     """All the sql and goose stuff goes in this class.
 
     We generate the SQL here becuase in the future I think we might want some
@@ -21,6 +37,7 @@ class DBConn(object):
     In addition to the parent's __init__ parameters, we need a list of
     the FBOTableEntry classes in the model.  Pass it as a kwarg.
     """
+
     def __init__(self, db_name="development", db_conf_file="", connect=True):
         """Open a database connection, creating db if needed, and generally
         get ready to store stuff.
@@ -38,12 +55,13 @@ class DBConn(object):
         self.db_name = db_name
         if os.path.exists(db_conf_file):
             # slurp dbconf.yml
-            with open(db_conf_file) as INF:
-                self.db_conf = yaml.load(INF)[db_name]
+            with open(db_conf_file) as fh:
+                self.db_conf = yaml.load(fh)[db_name]
         else:
             info("dbconf.yml not found, using default config values")
             self.db_name = "development"
-            self.db_conf = yaml.load("development:\n  driver: sqlite3\n  open: data.sqlite3\n")[self.db_name]
+            self.db_conf = yaml.load(
+                "development:\n  driver: sqlite3\n  open: data.sqlite3\n")[self.db_name]
 
         # If we're not opening a connection, we're done
         if not connect:
@@ -53,7 +71,9 @@ class DBConn(object):
         if self.db_conf['driver'] == 'sqlite3':
             self.conn = sqlite3.connect(self.db_conf['open'])
         else:
-            raise UnsupportedDBType("We don't support databases of type %s" % self.db_conf['driver'])
+            raise UnsupportedDBType(
+                "We don't support databases of type %s" %
+                self.db_conf['driver'])
 
     def close(self):
         """Commit and close the db connection"""
@@ -74,13 +94,15 @@ class DBConn(object):
         """
         c = self.conn.cursor()
         rows = c.execute("SELECT Count(*) FROM %s" % table).fetchone()[0]
-        if columns == None:
+        if columns is None:
             return rows
         ret = {}
         if columns == []:
             columns = self.get_header(table)
         for col in columns:
-            ret[col] = c.execute("SELECT Count(*) FROM %s WHERE %s is not null" % (table, col)).fetchone()[0]
+            ret[col] = c.execute(
+                "SELECT Count(*) FROM %s WHERE %s is not null" %
+                (table, col)).fetchone()[0]
         return rows, ret
 
     def row_to_dict(self, row, field=None, description=None):
@@ -95,6 +117,7 @@ class DBConn(object):
 
         Returns a dict with the keys taken from FIELD and the values taken from ROW.
         """
+        #pylint: disable=no-self-use
         assert field or description
         assert not (field and description)
 
@@ -104,53 +127,63 @@ class DBConn(object):
         field = ['id' if f == 'rowid' else f for f in field]
         return dict(zip(field, row))
 
-    def make_query_dict(self, table, d):
-        ## Add hash of all the columns so every row has a unique id
-        ## that survives table add/drop (but possibly not migrations)
-        d['sha256'] =  hashlib.sha256("|".join([str(d) for d in d.values()]).encode()).hexdigest()
+    def make_query_dict(self, table, dic):
+        """Make a query that inserts the values in the DIC into the table
+        named TABLE using the keys in DIC as column names.
 
-        ## Build query
-        columns = ', '.join(d.keys())
-        placeholders = ':'+', :'.join(d.keys())
-        query = "INSERT OR IGNORE INTO %s (%s) VALUES (%s);\n" % (table, columns, placeholders)
+        """
+        #pylint: disable=no-self-use
 
-        return query, d
+        # Add hash of all the columns so every row has a unique id
+        # that survives table add/drop (but possibly not migrations)
+        dic['sha256'] = hashlib.sha256(
+            "|".join([str(dic) for dic in dic.values()]).encode()).hexdigest()
 
-    def write_dict_many_query(self, query, d):
-        ## Execute query
+        # Build query
+        columns = ', '.join(dic.keys())
+        placeholders = ':' + ', :'.join(dic.keys())
+        query = "INSERT OR IGNORE INTO %s (%s) VALUES (%s);\n" % (
+            table, columns, placeholders)
+
+        return query, dic
+
+    def write_dict_many_query(self, query, dic):
+        """Use executemany to execute a query string with each entry in dict
+        DIC."""
+        # Execute query
         crsr = self.conn.cursor()
         #debug("Writing %s" % ", ".join(d.keys()))
-        crsr.executemany(query, d)
+        crsr.executemany(query, dic)
         self.conn.commit()
 
-    def write_dict(self, table, d):
+    def write_dict(self, table, dic):
         """Write the dict D to table TABLE, where the column names correspond
         to the keys."""
 
-        query, d = self.make_query_dict(table, d)
+        query, dic = self.make_query_dict(table, dic)
 
-        ## Execute query
+        # Execute query
         crsr = self.conn.cursor()
         #debug("Writing %s" % ", ".join(d.keys()))
-        crsr.execute(query, d)
+        crsr.execute(query, dic)
         self.conn.commit()
 
-    def goose(self):
+    def goose(self, migration_sources=None):
         """Returns a dict of goose migrations.  The keys are filenames and the
         values are the contents of the goose files.
 
-        We only have one migration so far, so this is pretty easy.
+        MIGRATION_SOURCES is a list of tuples with three elements: the
+        filename for the migrations, the SQL for upgrading, and the
+        SQL for going reversing a migration.
+
         """
-
-        # Make list of migration sources
-        migration_sources = [self.migrations()]
-        for fbo_class in self.FBOTableEntry_classes:
-            migration_sources.append(fbo_class().migrations())
-
+        if not migration_sources:
+            migration_sources = self.migrations()
         migrations = {}
         for source in migration_sources:
             for migration in source:
-                migrations[migration[0]] = "-- +goose Up\n%s\n-- +goose Down\n%s\n" % (migration[1], migration[2])
+                migrations[migration[0]] = "-- +goose Up\n%s\n-- +goose Down\n%s\n" % (
+                    migration[1], migration[2])
         return migrations
 
     def goose_write(self, dirname=None):
@@ -170,11 +203,11 @@ class DBConn(object):
             if os.path.exists(fname):
                 if u.slurp(fname) == migration:
                     continue
-                debug("Migration " +fname+" already exists. Overwriting.")
+                debug("Migration %s already exists. Overwriting.", fname)
             created.append(fname)
-            info("Writing migration to " + fname)
-            with open(fname, 'w') as OUTF:
-                OUTF.write(migration)
+            info("Writing migration to %s", fname)
+            with open(fname, 'w') as fh:
+                fh.write(migration)
         return created
 
     def migrate(self):
@@ -185,25 +218,34 @@ class DBConn(object):
         if not dirname:
             dirname = os.path.dirname(__file__)
 
-        ## Make sure our migrations are up to date
+        # Make sure our migrations are up to date
         self.goose_write()
 
         with cd(dirname):
             # Make sure the sqlite3 db exists before we try to migrate it
             if not os.path.exists(os.path.basename(self.db_conf['open'])):
-                raise DBNotFound("DB %s doesn't exist, so we can't migrate it." % self.db_conf['open'])
+                raise DBNotFound(
+                    "DB %s doesn't exist, so we can't migrate it." %
+                    self.db_conf['open'])
 
             # Goose apparently returns 0 even when it errors, so we
             # have to check stderr and react accordingly.
-            cmd = "goose {0} {1} up".format(self.db_conf['driver'], os.path.basename(self.db_conf['open']))
-            debug("Executing `%s`" % cmd)
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            cmd = "goose {0} {1} up".format(
+                self.db_conf['driver'], os.path.basename(
+                    self.db_conf['open']))
+            debug("Executing `%s`", cmd)
+            p = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=True)
             out, err = p.communicate()
             out = out.decode("utf-8")
             err = err.decode("utf-8")
             if p.returncode != 0:
                 sys.stderr.write("%s\n%s" % (out, err))
-                raise subprocess.CalledProcessError(p.returncode, cmd, out+err)
+                raise subprocess.CalledProcessError(
+                    p.returncode, cmd, out + err)
             return out
 
     def migrations(self):
@@ -215,14 +257,15 @@ class DBConn(object):
 
         # We only handle sqlite for now
         if self.db_conf['driver'] != "sqlite3":
-            raise UnsupportedDBType("We don't have migrations for %s" % self.db_conf['driver'])
+            raise UnsupportedDBType(
+                "We don't have migrations for %s" %
+                self.db_conf['driver'])
 
         return """CREATE TABLE IF NOT EXISTS log (
         datetime text,
         datatype text,
         msg text);
         """
-
 
     def log(self, datatype, message, now=""):
         """Add a MESSAGE string about a DATATYPE (either updated or
@@ -234,9 +277,10 @@ class DBConn(object):
 
         """
 
-        info("%s: %s" % (datatype, message))
+        info("%s: %s", datatype, message)
 
-        # See http://sqlite.org/datatype3.html for info on date formats in sqlite3
+        # See http://sqlite.org/datatype3.html for info on date formats in
+        # sqlite3
         if not now:
             now = datetime.datetime.now().isoformat()
         else:
@@ -268,37 +312,42 @@ class DBConn(object):
             return
 
         # Uh-oh, better fess up and clean up
-        warn("Duplicate reinstatements found in %s!" % table)
-        info("Cleaning duplicate reinstatements from %s" % table)
-        c.execute("delete from {0} where rowid not in (select max(rowid) from {0} group by {1})".format(
-            table,
-            ", ".join(self.get_header(table))
-            ))
+        warn("Duplicate reinstatements found in %s!", table)
+        info("Cleaning duplicate reinstatements from %s", table)
+        c.execute(
+            "delete from {0} where rowid not in (select max(rowid) from {0} group by {1})".format(
+                table, ", ".join(
+                    self.get_header(table))))
 
     def get_download_datetime(self, fname):
         """Return the logged time of the last download of the file named FNAME
 
         If it's not there, return None"""
         c = self.conn.cursor()
-        all = c.execute("SELECT * FROM log WHERE msg=?", ["Downloaded " + fname]).fetchall()
-        if not all:
+        rows = c.execute("SELECT * FROM log WHERE msg=?",
+                         ["Downloaded " + fname]).fetchall()
+        if not rows:
             return None
-        return dateutil.parser.parse(all[-1][0])
+        return dateutil.parser.parse(rows[-1][0])
 
     def get_parsed_datetime(self, fname):
         """Return the logged time of the last parsing of the file named FNAME
 
         If it's not there, return None"""
         c = self.conn.cursor()
-        all = c.execute("SELECT * FROM log WHERE msg=?", ["Parsed " + fname]).fetchall()
-        if not all:
+        rows = c.execute("SELECT * FROM log WHERE msg=?",
+                         ["Parsed " + fname]).fetchall()
+        if not rows:
             return None
-        return dateutil.parser.parse(all[-1][0])
+        return dateutil.parser.parse(rows[-1][0])
 
     def get_header(self, table):
         """Returns a list of the column names in TABLE"""
         c = self.conn.cursor()
-        return [f[1] for f in c.execute("PRAGMA table_info(%s)" % table).fetchall()]
+        return [
+            f[1] for f in c.execute(
+                "PRAGMA table_info(%s)" %
+                table).fetchall()]
 
     def get_latest_date(self, table, field):
         """Find and return the latest month and year in the list of actions in
@@ -310,7 +359,9 @@ class DBConn(object):
         """
 
         crsr = self.conn.cursor()
-        d = crsr.execute("SELECT {1} FROM {0} ORDER BY date({1}) DESC Limit 1".format(table, field)).fetchone()
+        d = crsr.execute(
+            "SELECT {1} FROM {0} ORDER BY date({1}) DESC Limit 1".format(
+                table, field)).fetchone()
         if not d:
             return ""
         return d[0][:10]
@@ -318,26 +369,34 @@ class DBConn(object):
     def get_log(self, rowid=None, limit=10, start=0, form="list"):
         """Return all the rows from the log table up to LIMIT rows
 
-        if ROWID is set, we just return that row and LIMIT parameter has no effect.  If that row doesn't exist, return None.
+        if ROWID is set, we just return that row and LIMIT parameter
+        has no effect.  If that row doesn't exist, return None.
 
-        FORM can be 'list' or 'dict'.  If 'list', return rows as lists.  If dict, return rows as dicts.
+        FORM can be 'list' or 'dict'.  If 'list', return rows as
+        lists.  If dict, return rows as dicts.
 
         If START is specified... I dunno. not implemented yet.
-        """
 
+        """
+        assert start == 0
         assert form in ["list", "dict"]
 
         crsr = self.conn.cursor()
 
         # Return just the requested row
         if rowid:
-            return crsr.execute("SELECT rowid, * FROM log WHERE rowid=?", [rowid]).fetchone()
+            return crsr.execute(
+                "SELECT rowid, * FROM log WHERE rowid=?",
+                [rowid]).fetchone()
 
         # Return a range of rows
-        rows = crsr.execute("SELECT rowid, * FROM log ORDER BY datetime DESC LIMIT ?", [limit]).fetchall()
+        rows = crsr.execute(
+            "SELECT rowid, * FROM log ORDER BY datetime DESC LIMIT ?",
+            [limit]).fetchall()
         if form == 'list':
             return rows
-        return [self.row_to_dict(r, description=crsr.description) for r in rows]
+        return [self.row_to_dict(r, description=crsr.description)
+                for r in rows]
 
     def unused_columns(self, table):
         """Returns a list of strings containing names of columns in TABLE that

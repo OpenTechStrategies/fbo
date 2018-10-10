@@ -1,5 +1,8 @@
+"""
+This module handles downloading of nightly data files from the FBO ftp site.
+"""
 from datetime import datetime
-from datetime import date, timedelta
+import time
 import dateutil.parser
 from ftplib import FTP
 import os
@@ -10,16 +13,21 @@ from urllib.parse import urlparse
 import log
 warn, info, debug, fatal = log.reporters()
 
+
 def get_mtime(fname):
     # Get file's mtime
     mtime = datetime.fromtimestamp(os.path.getmtime(fname))  # file's mtime
     tz = time.tzname[time.localtime().tm_isdst]              # file's timezone
-    return dateutil.parser.parse("%s %s" % (str(mtime), tz) ) # add timezone to file's mtime info
+    return dateutil.parser.parse(
+        "%s %s" %
+        (str(mtime), tz))  # add timezone to file's mtime info
+
 
 class Downloader():
     """This is a class to help with periodic downloading of a resource via http or ftp.
 
     It doesn't do ETL.  It just grabs a file."""
+
     def __init__(self, datadir, conn, tag="etl-download"):
         """Download items and put them in the DATADIR directory.
 
@@ -34,7 +42,7 @@ class Downloader():
         self.conn = conn
         self.tag = tag
 
-    def download(self, fname_url, check_log = False):
+    def download(self, fname_url, check_log=False):
         """Download a series of urls and save them to corresponding filenames.
 
         FNAME_URL is a generator function that produces dicts of {"fname":"foo", "url":"bar"}"""
@@ -44,14 +52,17 @@ class Downloader():
         for pair in fname_url(self):
             if self.dload_if_stale(pair['fname'],
                                    pair['url'],
-                                   check_log = check_log):
-                self.conn.log(self.tag, "Downloaded %s from %s" % (pair['fname'], pair['url']))
+                                   check_log=check_log):
+                self.conn.log(
+                    self.tag, "Downloaded %s from %s" %
+                    (pair['fname'], pair['url']))
                 downloaded.append(pair['fname'])
             else:
-                debug("Not stale: %s" % pair['fname'])
+                debug("Not stale: %s", pair['fname'])
 
         return downloaded
-    def dload_if_stale(self, fname, url, check_log = False):
+
+    def dload_if_stale(self, fname, url, check_log=False):
         """Download the file at URL and save it to FNAME, but only if the
         on-disk version is out of date.
 
@@ -65,28 +76,30 @@ class Downloader():
         if not self.fname_is_stale(fname, url, check_log=check_log):
             return False
 
-        debug("Downloading %s from %s" % (fname, url))
+        debug("Downloading %s from %s", fname, url)
 
         if url.startswith("ftp://"):
             return self.dload_if_stale_ftp(fname, url)
 
         # We stream and write this in chunks in case it is huge. It's
         # not, now, but maybe it will grow.  Better safe than sorry.
-        r=requests.get(url, stream=True)
+        r = requests.get(url, stream=True)
 
         # Warn if we can't download properly
         if r.status_code != 200:
-            warn("Fetching %s returned status code of %d. Discarding result" % (url, r.status_code))
+            warn(
+                "Fetching %s returned status code of %d. Discarding result",
+                url, r.status_code)
             return False
 
         # Did we get forwarded to a 404 page?
         if "404" in r.url:
-            warn("File not found: %s" % url)
+            warn("File not found: %s", url)
             return False
 
         with open(fname, 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
-                if chunk: # filter out keep-alive new chunks
+                if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
 
         assert int(r.headers["Content-Length"]) == os.path.getsize(fname)
@@ -94,6 +107,8 @@ class Downloader():
         return True
 
     def dload_if_stale_ftp(self, fname, url):
+        """Download file from ftp if it is out of date."""
+
         parsed_uri = urlparse(url)
         domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
         remote_path = parsed_uri.path
@@ -105,17 +120,16 @@ class Downloader():
         ftp.login()
 
         try:
-            with open(fname, "wb") as FH:
-                cmd = "RETR " + remote_path
-                ftp.retrbinary("RETR " + remote_path, FH.write)
+            with open(fname, "wb") as fh:
+                ftp.retrbinary("RETR " + remote_path, fh.write)
             self.conn.log(self.tag, "Downloaded %s" % os.path.basename(fname))
             return True
-        except:
+        except BaseException:
             if os.path.exists(fname):
                 os.unlink(fname)
             raise
 
-    def fname_is_stale(self, fname, url, check_log = False):
+    def fname_is_stale(self, fname, url, check_log=False):
         """Tries to answer the question of whether the file named FNAME needs
         to be redownloaded.
 
@@ -133,7 +147,7 @@ class Downloader():
         # Check that we haven't already downloaded this according to the log
         if check_log:
             last = self.conn.get_download_datetime(os.path.basename(fname))
-            if last != None:
+            if last is not None:
                 return False
 
         if url.startswith("ftp://"):
@@ -158,6 +172,7 @@ class Downloader():
         Return False if we can't quite download URL.
 
         """
+        #pylint: disable=no-self-use
 
         parsed_uri = urlparse(url)
         domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
@@ -169,12 +184,13 @@ class Downloader():
         ftp.login()
         size = ftp.size(remote_path)
         datum = ftp.sendcmd("MDTM %s" % remote_path).split(' ')[1]
-        datum = datetime(int(datum[0:4]), int(datum[4:6]), int(datum[6:8]), int(datum[8:10]), int(datum[10:12]))
+        datum = datetime(int(datum[0:4]), int(datum[4:6]), int(
+            datum[6:8]), int(datum[8:10]), int(datum[10:12]))
 
         # If size indicated in ftp listing differs from size on disk, then
         # the file is stale.
         if size != os.path.getsize(fname):
-            warn("Size differs from that on disk. File %s is stale." % fname)
+            warn("Size differs from that on disk. File %s is stale.", fname)
             return True
 
         # If the url version is somehow newer than our file on disk, the
@@ -185,7 +201,7 @@ class Downloader():
         # Looks like the cached file is still good
         return False
 
-    def fname_is_stale_http (self, fname, url):
+    def fname_is_stale_http(self, fname, url):
         """Tries to answer the question of whether the file named FNAME needs
         to be redownloaded.
 
@@ -202,18 +218,19 @@ class Downloader():
         # Get head of url target
         r = requests.head(url)
         if r.status_code != 200:
-            warn("Can't get head information about %s" % url)
+            warn("Can't get head information about %s", url)
             return False
 
         # If size indicated in header differs from size on disk, then
         # the file is stale.
         if int(r.headers["Content-Length"]) != os.path.getsize(fname):
-            warn("Size differs from that on disk. File %s is stale." % fname)
+            warn("Size differs from that on disk. File %s is stale.", fname)
             return True
 
         # Get mod times of url and fname
         mtime = get_mtime(fname)
-        dt = dateutil.parser.parse(r.headers['Last-Modified'])   # url's last mod time
+        dt = dateutil.parser.parse(
+            r.headers['Last-Modified'])   # url's last mod time
 
         # If the url version is newer than our file on disk, the file on
         # disk is stale
@@ -221,8 +238,11 @@ class Downloader():
             return True
 
         # Retroactively log the download of the cached file
-        self.conn.log(self.tag, "Downloaded %s" % os.path.basename(fname), mtime)
+        self.conn.log(
+            self.tag,
+            "Downloaded %s" %
+            os.path.basename(fname),
+            mtime)
 
         # Looks like the cached file is still good
         return False
-
