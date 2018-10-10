@@ -278,7 +278,7 @@ def get_FBOTableEntry_classes_as_dict():
 def main(dirname=None):
     logger = log.logger()
     logger.info('Running model.py directly to produce schema/goose output.')
-    conn = SQL(connect=False)
+    conn = FBO(connect=False)
     fnames = conn.goose_write(dirname)
     logger.info('Finished running model.py directly to produce schema/goose output.')
     return fnames
