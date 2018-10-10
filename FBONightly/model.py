@@ -179,14 +179,14 @@ class Amdcss(FBOTableEntry):
 
 class Archive(FBOTableEntry):
     """Model of a Archive"""
-    fields = "date solicitation_number award_number award_amount award_date response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype foja donbr correction modnbr".split(" ")
+    fields = "date solicitation_number award_number agency office location archive_date ntype".split(" ")
 
     def migrations(self):
         return (("011_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
 
 class Award(FBOTableEntry):
     """Model of a Award"""
-    fields = "date solicitation_number award_number award_amount award_date awardee line_number response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype correction".split(" ")
+    fields = "date solicitation_number award_number award_amount award_date awardee line_number agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact ntype correction".split(" ")
 
     def migrations(self):
         return (("008_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
@@ -201,14 +201,14 @@ class Combine(FBOTableEntry):
 
 class Fairopp(FBOTableEntry):
     """Model of a Fairopp"""
-    fields = "date solicitation_number award_number award_amount award_date response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype foja donbr correction modnbr".split(" ")
+    fields = "date solicitation_number award_number award_date agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact ntype foja donbr modnbr".split(" ")
 
     def migrations(self):
         return (("010_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
 
 class Fstd(FBOTableEntry):
     """Model of a Fstd"""
-    fields = "date solicitation_number award_number award_amount award_date response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype foja donbr correction modnbr".split(" ")
+    fields = "date solicitation_number response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc contact pop_address pop_zip pop_country".split(" ")
 
     def migrations(self):
         return (("014_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
@@ -222,7 +222,7 @@ class ITB(FBOTableEntry):
 
 class Ja(FBOTableEntry):
     """Model of a Ja"""
-    fields = "date solicitation_number award_number award_amount award_date response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype stauth correction modnbr".split(" ")
+    fields = "date solicitation_number award_number award_date agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact ntype stauth correction modnbr".split(" ")
 
     def migrations(self):
         return (("009_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
@@ -264,7 +264,7 @@ class SSale(FBOTableEntry):
 
 class Unarchive(FBOTableEntry):
     """Model of a Unarchive"""
-    fields = "date solicitation_number award_number award_amount award_date response_date setaside agency office location office_address zip class_code naics subject desc url url_desc email email_desc archive_date contact pop_address pop_zip pop_country ntype foja donbr correction modnbr".split(" ")
+    fields = "date solicitation_number award_number agency office location archive_date ntype".split(" ")
 
     def migrations(self):
         return (("012_%s_table.sql" % self.record_type, self.sql_table(), "DROP TABLE %s;" % self.record_type),)
