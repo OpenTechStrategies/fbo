@@ -31,7 +31,12 @@ class FBO(SQL):
     def __init__(self, *args, **kwargs):
         self.FBOTableEntry_classes = get_FBOTableEntry_classes()
         SQL.__init__(self, *args, **kwargs)
-        
+
+    def unused_columns(self):
+        ret = {}
+        for cls in self.FBOTableEntry_classes:
+            ret[cls.__name__] = SQL.unused_columns(self, cls.__name__)
+        return ret
 
 class FBOTableEntry(dict):
     """Model of a record type from the nightly fbo dump.

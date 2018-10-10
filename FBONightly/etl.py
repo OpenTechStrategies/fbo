@@ -215,6 +215,10 @@ def main(reparse):
     nights = Nightlies(db)
     nights.etl_from_dir(reparse=reparse)
 
+    unused = db.unused_columns()
+    print("Unused columns:")
+    pp([{d:unused[d]} for d in unused if unused[d] != ['nightly_id']])
+
     ## Close the db connection
     db.close()
 
