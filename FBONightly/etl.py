@@ -183,8 +183,8 @@ def fname_urls(self):
     if datetime.now().hour < 17:
         x += 1
 
-    # Each time we run this, we add download extra files to get at the backload
-    maximum = len(os.listdir(self.datadir)) + 2
+    # Each time we run this, we download extra files to get at the backload
+    maximum = len(os.listdir(self.datadir)) + 3
 
     while x < maximum:
         today = date.today() - timedelta(x)
