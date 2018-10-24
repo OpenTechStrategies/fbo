@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""This script loads code from LEIE data files into a database.
+"""This script loads code from FBO data files into a database.
 
 See README.mdwn for details and instructions.
 
@@ -248,7 +248,7 @@ def main(reparse=False):
     # Close the db connection
     db.close()
 
-    info('Finished ETL of LEIE data.')
+    info('Finished ETL of FBO data.')
 
 
 if __name__ == '__main__':
